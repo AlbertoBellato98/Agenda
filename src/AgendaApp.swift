@@ -83,7 +83,12 @@ final class LocalServer {
         task.currentDirectoryURL = URL(fileURLWithPath: workingDirectory)
 
         var env = ProcessInfo.processInfo.environment
-        env["AGENDA_DATA_DIR"] = dataDirectory
+        // Respect an AGENDA_DATA_DIR set by whoever launched us: automated
+        // tests use it to point the app at a sandbox folder. Normal launches
+        // (Finder, Dock) never have it set, so users get ~/Documents/Agenda.
+        if env["AGENDA_DATA_DIR"] == nil {
+            env["AGENDA_DATA_DIR"] = dataDirectory
+        }
         task.environment = env
 
         try task.run()
@@ -135,7 +140,8 @@ final class LocalServer {
 
 // MARK: - Application delegate
 
-final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate,
+                         WKNavigationDelegate, WKUIDelegate {
     private var window: NSWindow!
     private var webView: WKWebView!
     private var server: LocalServer!
@@ -195,6 +201,63 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         guard !window.isVisible else { return }
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    // MARK: JavaScript dialog panels (WKUIDelegate)
+    //
+    // WKWebView does NOT render JavaScript's alert()/confirm()/prompt() on
+    // its own: without these delegate methods the dialogs never appear and
+    // confirm() silently returns false — which made the interface's
+    // "Elimina" buttons look dead. We surface them as native macOS sheets
+    // attached to the window. The completion handler must be called exactly
+    // once, on every path, or WebKit hangs that page.
+
+    func webView(_ webView: WKWebView,
+                 runJavaScriptConfirmPanelWithMessage message: String,
+                 initiatedByFrame frame: WKFrameInfo,
+                 completionHandler: @escaping (Bool) -> Void) {
+        let alert = NSAlert()
+        alert.messageText = Config.appName
+        alert.informativeText = message
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "OK")        // first button = confirmed
+        alert.addButton(withTitle: "Annulla")   // second = cancelled (also Esc)
+        alert.beginSheetModal(for: window) { response in
+            completionHandler(response == .alertFirstButtonReturn)
+        }
+    }
+
+    func webView(_ webView: WKWebView,
+                 runJavaScriptAlertPanelWithMessage message: String,
+                 initiatedByFrame frame: WKFrameInfo,
+                 completionHandler: @escaping () -> Void) {
+        let alert = NSAlert()
+        alert.messageText = Config.appName
+        alert.informativeText = message
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "OK")
+        alert.beginSheetModal(for: window) { _ in
+            completionHandler()
+        }
+    }
+
+    func webView(_ webView: WKWebView,
+                 runJavaScriptTextInputPanelWithPrompt prompt: String,
+                 defaultText: String?,
+                 initiatedByFrame frame: WKFrameInfo,
+                 completionHandler: @escaping (String?) -> Void) {
+        let alert = NSAlert()
+        alert.messageText = Config.appName
+        alert.informativeText = prompt
+        alert.addButton(withTitle: "OK")
+        alert.addButton(withTitle: "Annulla")
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 260, height: 24))
+        field.stringValue = defaultText ?? ""
+        alert.accessoryView = field
+        alert.window.initialFirstResponder = field
+        alert.beginSheetModal(for: window) { response in
+            completionHandler(response == .alertFirstButtonReturn ? field.stringValue : nil)
+        }
     }
 
     // MARK: Clean shutdown
@@ -258,6 +321,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         let config = WKWebViewConfiguration()
         webView = WKWebView(frame: window.contentView!.bounds, configuration: config)
         webView.autoresizingMask = [.width, .height]
+        webView.uiDelegate = self // routes confirm()/alert()/prompt() to native sheets
         window.contentView!.addSubview(webView)
     }
 
