@@ -215,6 +215,29 @@ function clientsSortedByName() {
     `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`, 'it'));
 }
 
+/* Pipeline status of a client — a simple traffic light:
+   prospect = being worked (yellow), client = won (green),
+   ko = not interested / unreachable (red). */
+const CLIENT_STATUSES = {
+  prospect: { label: 'PROSPECT', cssClass: 'status-prospect' },
+  client:   { label: 'CLIENTE',  cssClass: 'status-client' },
+  ko:       { label: 'KO',       cssClass: 'status-ko' },
+};
+
+/* Records created before this field existed have no status:
+   treat them as "prospect" instead of failing. */
+function clientStatus(client) {
+  return CLIENT_STATUSES[client.status] ? client.status : 'prospect';
+}
+
+/* A small colored dot for the given client, used in every list. */
+function buildStatusDot(client) {
+  const dot = document.createElement('span');
+  dot.className = `status-dot ${CLIENT_STATUSES[clientStatus(client)].cssClass}`;
+  dot.setAttribute('aria-hidden', 'true');
+  return dot;
+}
+
 /* ═══════════ 5. Saving ═══════════ */
 
 /* Every data change calls this. It re-renders instantly but waits for a
@@ -575,6 +598,7 @@ function renderDropdown() {
 
     const nameLine = document.createElement('span');
     nameLine.className = 'result-name';
+    nameLine.append(buildStatusDot(result.client), ' ');
     nameLine.append(highlightMatches(
       `${result.client.lastName} ${result.client.firstName}`, query));
     nameLine.append(' ');
@@ -683,7 +707,7 @@ function renderDirectory() {
 
     const name = document.createElement('span');
     name.className = 'row-name';
-    name.textContent = `${client.lastName} ${client.firstName} `;
+    name.append(buildStatusDot(client), ` ${client.lastName} ${client.firstName} `);
     const chip = document.createElement('span');
     chip.className = 'code-chip';
     chip.textContent = client.code;
@@ -739,6 +763,11 @@ function renderProfile() {
 
   $('profile-name').textContent = `${client.firstName} ${client.lastName}`;
   $('profile-code').textContent = client.code;
+
+  // Status chip: colored dot + label (PROSPECT / CLIENTE / KO).
+  const statusChip = $('profile-status');
+  statusChip.textContent = '';
+  statusChip.append(buildStatusDot(client), CLIENT_STATUSES[clientStatus(client)].label);
 
   const notes = [...client.notes].sort((a, b) => b.createdAt - a.createdAt);
   const count = notes.length;
@@ -883,6 +912,9 @@ function openClientDialog(client = null) {
   $('client-code-input').value = client ? client.code : '';
   $('client-first-name-input').value = client ? client.firstName : '';
   $('client-last-name-input').value = client ? client.lastName : '';
+  // Pre-select the client's current status; new clients start as PROSPECT.
+  const status = client ? clientStatus(client) : 'prospect';
+  document.querySelector(`input[name="client-status"][value="${status}"]`).checked = true;
   $('client-form-error').classList.add('hidden');
   $('client-dialog').showModal();
   setTimeout(() => $('client-code-input').focus(), 50);
@@ -895,8 +927,10 @@ $('client-cancel-button').addEventListener('click', () => $('client-dialog').clo
 $('client-form').addEventListener('submit', (event) => {
   event.preventDefault();
   const code = $('client-code-input').value.trim();
-  const firstName = $('client-first-name-input').value.trim();
-  const lastName = $('client-last-name-input').value.trim();
+  // Names are stored uppercase — the archive convention of this agenda.
+  const firstName = $('client-first-name-input').value.trim().toLocaleUpperCase('it-IT');
+  const lastName = $('client-last-name-input').value.trim().toLocaleUpperCase('it-IT');
+  const status = document.querySelector('input[name="client-status"]:checked').value;
   const errorEl = $('client-form-error');
 
   if (editingBlocked) {
@@ -926,11 +960,11 @@ $('client-form').addEventListener('submit', (event) => {
   const now = Date.now();
   let openedId = null;
   if (clientBeingEdited) {
-    Object.assign(clientBeingEdited, { code, firstName, lastName, updatedAt: now });
+    Object.assign(clientBeingEdited, { code, firstName, lastName, status, updatedAt: now });
   } else {
     const newClient = {
       id: 'c-' + crypto.randomUUID(),
-      code, firstName, lastName,
+      code, firstName, lastName, status,
       createdAt: now, updatedAt: now,
       notes: [],
     };

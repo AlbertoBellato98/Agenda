@@ -58,6 +58,10 @@ PICCOLE COSE UTILI
   mentre digiti. Frecce ↑ ↓ per scegliere, Invio (o click, o il
   tasto Cerca) per aprire la scheda.
 - La ricerca trova anche le parole scritte dentro le note.
+- Ogni cliente ha uno stato con pallino colorato:
+  giallo = PROSPECT (in lavorazione), verde = CLIENTE,
+  rosso = KO (non interessato / non risponde).
+  Lo scegli quando crei o modifichi il cliente.
 - Nella scheda di un cliente, scrivi la nota e premi
   Cmd+Invio per salvarla al volo.
 - "Tutti i clienti" in home mostra l'elenco completo.

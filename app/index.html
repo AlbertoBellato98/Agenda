@@ -116,6 +116,7 @@
       <h2 id="profile-name" class="profile-title"></h2>
       <div class="profile-props">
         <span id="profile-code" class="code-chip"></span>
+        <span id="profile-status" class="status-chip"></span>
         <span id="profile-stats" class="muted"></span>
         <span class="profile-actions">
           <button id="edit-client-button" class="quiet-button">Modifica</button>
@@ -152,11 +153,30 @@
       <input type="text" id="client-code-input" placeholder="es. CL0042" required>
     </label>
     <label>Nome
-      <input type="text" id="client-first-name-input" placeholder="Nome" required>
+      <input type="text" id="client-first-name-input" class="uppercase-input"
+             placeholder="NOME" required>
     </label>
     <label>Cognome
-      <input type="text" id="client-last-name-input" placeholder="Cognome" required>
+      <input type="text" id="client-last-name-input" class="uppercase-input"
+             placeholder="COGNOME" required>
     </label>
+
+    <!-- Pipeline status: is this a lead, an active client, or a dead end? -->
+    <fieldset class="status-choice">
+      <legend>Stato</legend>
+      <label class="status-option">
+        <input type="radio" name="client-status" value="prospect" checked>
+        <span class="status-dot status-prospect" aria-hidden="true"></span> PROSPECT
+      </label>
+      <label class="status-option">
+        <input type="radio" name="client-status" value="client">
+        <span class="status-dot status-client" aria-hidden="true"></span> CLIENTE
+      </label>
+      <label class="status-option">
+        <input type="radio" name="client-status" value="ko">
+        <span class="status-dot status-ko" aria-hidden="true"></span> KO
+      </label>
+    </fieldset>
     <p id="client-form-error" class="form-error hidden"></p>
     <div class="dialog-actions">
       <button type="button" id="client-cancel-button" class="quiet-button">Annulla</button>
