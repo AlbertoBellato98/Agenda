@@ -78,23 +78,25 @@
   <div class="home-stage">
     <h2 class="home-title">Chi stai cercando?</h2>
 
-    <!-- The floating search panel: the one "3D" element of the app -->
-    <div class="search-panel" id="search-panel">
-      <form id="search-form" role="search">
-        <input id="search-input" type="text"
-               placeholder="Codice cliente, nome o cognome…"
-               autocomplete="off" spellcheck="false"
-               role="combobox" aria-expanded="false"
-               aria-controls="search-dropdown" aria-autocomplete="list">
-        <button type="submit" id="search-button" class="primary-button">Cerca</button>
-      </form>
-      <ul id="search-dropdown" class="dropdown hidden" role="listbox"></ul>
+    <!-- Search panel (the one "3D" element) + a "Nuovo" button beside it -->
+    <div class="search-row">
+      <div class="search-panel" id="search-panel">
+        <form id="search-form" role="search">
+          <input id="search-input" type="text"
+                 placeholder="Codice cliente, nome o cognome…"
+                 autocomplete="off" spellcheck="false"
+                 role="combobox" aria-expanded="false"
+                 aria-controls="search-dropdown" aria-autocomplete="list">
+          <button type="submit" id="search-button" class="primary-button">Cerca</button>
+        </form>
+        <ul id="search-dropdown" class="dropdown hidden" role="listbox"></ul>
+      </div>
+      <button id="new-client-button" class="primary-button new-client-button"
+              title="Crea un nuovo cliente">+ Nuovo</button>
     </div>
 
     <div class="home-meta">
       <span id="client-count" class="muted"></span>
-      <span class="dot-separator" aria-hidden="true">·</span>
-      <button id="new-client-button" class="quiet-button">+ Nuovo cliente</button>
       <span class="dot-separator" aria-hidden="true">·</span>
       <button id="browse-button" class="quiet-button" aria-expanded="false">Tutti i clienti</button>
     </div>
@@ -103,7 +105,7 @@
 
     <div id="home-empty" class="empty-state hidden">
       <p aria-hidden="true">📇</p>
-      <p>Nessun cliente ancora.<br>Aggiungi il primo con <strong>+ Nuovo cliente</strong>.</p>
+      <p>Nessun cliente ancora.<br>Aggiungi il primo con <strong>+ Nuovo</strong>.</p>
     </div>
   </div>
 </section>
@@ -158,13 +160,13 @@
     <label>Codice cliente
       <input type="text" id="client-code-input" placeholder="es. CL0042" required>
     </label>
-    <label>Nome
-      <input type="text" id="client-first-name-input" class="uppercase-input"
-             placeholder="NOME" required>
-    </label>
     <label>Cognome
       <input type="text" id="client-last-name-input" class="uppercase-input"
              placeholder="COGNOME" required>
+    </label>
+    <label>Nome
+      <input type="text" id="client-first-name-input" class="uppercase-input"
+             placeholder="NOME" required>
     </label>
 
     <!-- Pipeline status: is this a lead, an active client, or a dead end? -->

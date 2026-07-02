@@ -774,13 +774,19 @@ $('search-input').addEventListener('keydown', (event) => {
   }
 });
 
-/* Enter and the "Cerca" button both open the highlighted result. */
+/* Enter / "Cerca":
+   - a result is highlighted → open it;
+   - there IS a query but no match → offer to create a client from it;
+   - nothing typed yet → just (re)show the dropdown. */
 $('search-form').addEventListener('submit', (event) => {
   event.preventDefault();
+  const query = $('search-input').value.trim();
   if (selectedIndex >= 0 && dropdownResults[selectedIndex]) {
     openResult(dropdownResults[selectedIndex]);
+  } else if (query && dropdownResults.length === 0) {
+    openCreateFromSearch(); // no client matches → create one, seeded from the query
   } else {
-    renderDropdown(); // no results yet (e.g. button clicked first): show them
+    renderDropdown();
   }
 });
 
@@ -1037,22 +1043,46 @@ $('delete-client-button').addEventListener('click', () => {
 
 let clientBeingEdited = null; // null = the dialog will create a new client
 
-function openClientDialog(client = null) {
+/* prefill (only when creating) can carry { code } or { lastName } to seed
+   the dialog from the search box. See openCreateFromSearch below. */
+function openClientDialog(client = null, prefill = null) {
   if (editingBlocked) return;
   clientBeingEdited = client;
   $('client-dialog-title').textContent = client ? 'Modifica cliente' : 'Nuovo cliente';
-  $('client-code-input').value = client ? client.code : '';
+  $('client-code-input').value = client ? client.code : (prefill?.code || '');
   $('client-first-name-input').value = client ? client.firstName : '';
-  $('client-last-name-input').value = client ? client.lastName : '';
+  $('client-last-name-input').value = client ? client.lastName : (prefill?.lastName || '');
   // Pre-select the client's current status; new clients start as PROSPECT.
   const status = client ? clientStatus(client) : 'prospect';
   document.querySelector(`input[name="client-status"][value="${status}"]`).checked = true;
   $('client-form-error').classList.add('hidden');
   $('client-dialog').showModal();
-  setTimeout(() => $('client-code-input').focus(), 50);
+  // Focus where the user would naturally keep typing:
+  // seeded a code → jump to Cognome; seeded a surname → jump to Nome;
+  // otherwise start at the top (Codice).
+  const focusId = prefill?.code ? 'client-last-name-input'
+    : prefill?.lastName ? 'client-first-name-input'
+    : 'client-code-input';
+  setTimeout(() => $(focusId).focus(), 50);
 }
 
-$('new-client-button').addEventListener('click', () => openClientDialog());
+/* Turn the search box text into a new-client dialog. A query made only of
+   digits/codes seeds the "Codice cliente"; anything else is a name, and
+   since the surname comes first it seeds "Cognome". */
+function openCreateFromSearch() {
+  const query = $('search-input').value.trim();
+  let prefill = null;
+  if (query) {
+    prefill = /^[0-9\s.\-/]+$/.test(query)
+      ? { code: query.toLocaleUpperCase('it-IT') }
+      : { lastName: query.toLocaleUpperCase('it-IT') };
+  }
+  closeDropdown();
+  $('search-input').value = '';
+  openClientDialog(null, prefill);
+}
+
+$('new-client-button').addEventListener('click', openCreateFromSearch);
 $('edit-client-button').addEventListener('click', () => openClientDialog(findClient(openClientId)));
 $('client-cancel-button').addEventListener('click', () => $('client-dialog').close());
 

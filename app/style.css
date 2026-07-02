@@ -230,6 +230,27 @@ button { font-family: inherit; }
   letter-spacing: .01em;
 }
 
+/* Search panel + the "Nuovo" button sit side by side. align-items:start
+   keeps the button aligned to the top of the panel even when the results
+   dropdown makes the panel taller. */
+.search-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.search-row .search-panel { flex: 1; }
+
+/* "+ Nuovo" lives OUTSIDE the panel, next to "Cerca". The panel has 11px
+   of inner offset (10px padding + 1px border) before its Cerca button, so
+   the same margin lines this button up with it. */
+.new-client-button {
+  flex: none;
+  margin-top: 11px;
+  padding: 12px 18px;
+  font-size: 1rem;
+  white-space: nowrap;
+}
+
 /* The floating card. JS adds a gentle pointer-following tilt;
    everything still works if that never runs. */
 .search-panel {
