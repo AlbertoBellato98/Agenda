@@ -35,6 +35,10 @@ echo "› Assembling bundle…"
 cp Info.plist "$CONTENTS/Info.plist"
 cp server.py "$CONTENTS/Resources/server.py"
 cp -R app "$CONTENTS/Resources/app"
+# Verify the web assets the app depends on all reached the bundle.
+for asset in index.html app.js style.css wordlist.js; do
+    test -f "$CONTENTS/Resources/app/$asset" || { echo "✗ missing app/$asset" >&2; exit 1; }
+done
 if [ -f Agenda.icns ]; then
     cp Agenda.icns "$CONTENTS/Resources/Agenda.icns"
 else

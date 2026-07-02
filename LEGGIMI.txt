@@ -35,7 +35,21 @@ Ogni salvataggio crea automaticamente una copia di sicurezza.
 Se il Mac sincronizza i Documenti su iCloud, anche meglio:
 su iCloud finiscono solo dati cifrati, ed è un backup in più.
 
-RIPRISTINARE UN BACKUP (solo in caso di emergenza)
+BACKUP SU CHIAVETTA E CAMBIO DI MAC
+────────────────────────────────────
+Dal menu ⚙️ > "Esporta backup…" l'app crea un file cifrato
+che puoi salvare su una chiavetta USB. Ti mostra 24 PAROLE:
+scrivile su carta, in ordine — sono l'unica chiave del file.
+
+Sul nuovo Mac: installa Agenda, aprila e scegli
+"Ripristina da un backup…" nella schermata iniziale.
+Scegli il file dalla chiavetta, scrivi le 24 parole,
+imposta la nuova password: ritrovi tutti i tuoi clienti.
+
+⚠️ Chi ha il file E le 24 parole può leggere i tuoi dati:
+   conserva le parole separate dalla chiavetta.
+
+RIPRISTINARE UN BACKUP AUTOMATICO (solo in caso di emergenza)
 ──────────────────────────────────────────────────
 1. Chiudi l'app (pallino rosso o Cmd+Q).
 2. Vai in Documenti ▸ Agenda ▸ backups, scegli la copia con

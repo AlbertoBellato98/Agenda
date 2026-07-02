@@ -70,6 +70,80 @@ async function decryptEnvelope(key, envelope) {
   return JSON.parse(new TextDecoder().decode(plaintext));
 }
 
+/* ── Recovery phrase (24 words, BIP39) ─────────────────────────────
+   Portable backups are encrypted with a key derived from a 24-word
+   phrase instead of the password. 24 words from the 2048-word list
+   encode 264 bits: 256 bits of random entropy + an 8-bit checksum.
+   The checksum lets the app catch a mistyped or swapped word BEFORE
+   attempting decryption. Wordlist: app/wordlist.js (official BIP39
+   Italian list — no accented characters, easy to type). */
+
+/* Turn 32 random bytes into 24 words. The 8 checksum bits come from
+   the SHA-256 of the entropy, as the BIP39 standard prescribes. */
+async function generateRecoveryPhrase() {
+  const entropy = crypto.getRandomValues(new Uint8Array(32));
+  const hash = new Uint8Array(await crypto.subtle.digest('SHA-256', entropy));
+  const bytes = [...entropy, hash[0]]; // 33 bytes = 264 bits = 24 × 11
+
+  let bits = '';
+  for (const byte of bytes) bits += byte.toString(2).padStart(8, '0');
+
+  const words = [];
+  for (let i = 0; i < 24; i++) {
+    const index = parseInt(bits.slice(i * 11, (i + 1) * 11), 2);
+    words.push(BIP39_WORDS[index]);
+  }
+  return words;
+}
+
+/* Clean up whatever the user typed: lowercase, collapse whitespace. */
+function parsePhrase(text) {
+  return text.normalize('NFKD').toLowerCase().trim().split(/\s+/).filter(Boolean);
+}
+
+/* Validate a typed phrase. Returns { ok: true } or { ok, error } with a
+   human message pinpointing the problem (wrong count, unknown word, or
+   failed checksum — which means a typo or swapped words). */
+async function validateRecoveryPhrase(words) {
+  if (words.length !== 24) {
+    return { ok: false, error: `Servono 24 parole (ne hai scritte ${words.length}).` };
+  }
+  let bits = '';
+  for (const [i, word] of words.entries()) {
+    const index = BIP39_WORDS.indexOf(word);
+    if (index === -1) {
+      return { ok: false, error: `La parola n. ${i + 1} ("${word}") non è nella lista.` };
+    }
+    bits += index.toString(2).padStart(11, '0');
+  }
+  const entropy = new Uint8Array(32);
+  for (let i = 0; i < 32; i++) entropy[i] = parseInt(bits.slice(i * 8, (i + 1) * 8), 2);
+  const hash = new Uint8Array(await crypto.subtle.digest('SHA-256', entropy));
+  const expected = hash[0].toString(2).padStart(8, '0');
+  if (bits.slice(256) !== expected) {
+    return { ok: false, error: 'Le parole non tornano: controlla di averle scritte giuste e in ordine.' };
+  }
+  return { ok: true };
+}
+
+/* The phrase acts as the password for the backup file. The random salt
+   stored in the backup envelope makes each backup independently keyed. */
+function deriveBackupKey(words, saltBytes, iterations) {
+  return deriveKey(words.join(' '), saltBytes, iterations);
+}
+
+/* Encrypt the current data into a portable backup envelope. Same shape
+   as the main envelope but tagged "agenda-backup-v1" so the two can
+   never be confused, plus a creation date to identify the file. */
+async function buildBackupEnvelope(words) {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const key = await deriveBackupKey(words, salt, KDF_ITERATIONS);
+  const envelope = await encryptState(key, salt, appState);
+  envelope.format = 'agenda-backup-v1';
+  envelope.createdAt = Date.now();
+  return envelope;
+}
+
 /* ═══════════ 2. Server API ═══════════ */
 
 /* Returns { envelope, etag } or null when no data exists yet (first run). */
@@ -107,6 +181,7 @@ let lastEnvelope = null;   // last ciphertext seen (used to verify the old passw
 let openClientId = null;   // client shown in the profile view, or null
 let hasUnsavedChanges = false;
 let editingBlocked = false; // true after a two-window conflict, until reload
+let dataExistsOnDisk = false; // does this Mac already hold an agenda? (set at boot)
 let saveTimer = null;
 let retryTimer = null;
 let lastActivityTime = Date.now();
@@ -339,6 +414,9 @@ async function lockApp() {
   // screen (dialogs live in the browser's "top layer") with stale state.
   $('client-dialog').close();
   $('password-dialog').close();
+  $('backup-dialog').close();
+  $('restore-dialog').close();
+  pendingBackupWords = null; // the recovery phrase is as secret as a key
   // Stop any pending retry and clear its banner: while locked there is
   // nothing to save (locking wipes the plaintext by design).
   clearInterval(retryTimer);
@@ -367,12 +445,17 @@ async function lockApp() {
 function clearDecryptedDom() {
   for (const id of [
     'note-input', 'search-input',
+    'setup-password', 'setup-confirm', 'unlock-password',
     'client-code-input', 'client-first-name-input', 'client-last-name-input',
     'current-password-input', 'new-password-input', 'confirm-password-input',
+    'restore-phrase-input', 'restore-password-input', 'restore-confirm-input',
+    'restore-file-input',
   ]) $(id).value = '';
   for (const id of [
     'note-list', 'client-directory', 'search-dropdown',
     'profile-name', 'profile-code', 'profile-stats', 'client-count',
+    'word-grid',          // the 24 recovery words must never survive a lock
+    'restore-file-info',  // nor the chosen backup filename
   ]) $(id).textContent = '';
 }
 
@@ -408,14 +491,20 @@ async function boot() {
     const stored = await fetchBlob();
     if (stored === null) {
       // First run: no data file yet — ask the user to create a password.
+      dataExistsOnDisk = false;
       $('setup-form').classList.remove('hidden');
       setTimeout(() => $('setup-password').focus(), 50);
     } else {
+      dataExistsOnDisk = true;
       lastEnvelope = stored.envelope;
       blobEtag = stored.etag;
       $('unlock-form').classList.remove('hidden');
       setTimeout(() => $('unlock-password').focus(), 50);
     }
+    // "Restore from backup" is available on both screens — it's the first
+    // thing you use on a brand-new Mac (first run) and a recovery option
+    // otherwise.
+    $('restore-link').classList.remove('hidden');
   } catch {
     showBanner('Impossibile contattare il server. Chiudi e riapri l’app Agenda.');
   }
@@ -451,6 +540,10 @@ $('setup-form').addEventListener('submit', async (event) => {
     const envelope = await encryptState(encryptionKey, keySalt, appState);
     blobEtag = await storeBlob(envelope, { isFirstWrite: true });
     lastEnvelope = envelope;
+    dataExistsOnDisk = true; // the first blob now exists on disk
+    // The master password must not linger in the (hidden) setup inputs.
+    $('setup-password').value = '';
+    $('setup-confirm').value = '';
     openHome();
   } catch {
     showBanner('Errore durante la creazione. Riprova.');
@@ -474,15 +567,25 @@ $('unlock-form').addEventListener('submit', async (event) => {
   let dataMissing = false;
   try {
     const stored = await fetchBlob();
-    if (stored) { lastEnvelope = stored.envelope; blobEtag = stored.etag; }
-    else dataMissing = true; // server answered 404: the data file is gone
+    if (stored) {
+      lastEnvelope = stored.envelope;
+      blobEtag = stored.etag;
+      dataExistsOnDisk = true;
+    } else {
+      // Server answered 404: the data file is gone. Keep the state honest so
+      // a "Ripristina da un backup…" from here uses first-write, not If-Match.
+      dataMissing = true;
+      dataExistsOnDisk = false;
+      lastEnvelope = null;
+      blobEtag = null;
+    }
   } catch {
     reachedServer = false;
   }
 
   if (!reachedServer || dataMissing) {
     $('unlock-error').textContent = reachedServer
-      ? 'Dati non trovati. Riavvia l’app; se serve, ripristina un backup dalla cartella "dati/backups".'
+      ? 'Dati non trovati. Puoi ripristinare da un backup con il pulsante qui sotto.'
       : 'Impossibile contattare il server. Riavvia l’app e riprova.';
     $('unlock-error').classList.remove('hidden');
     $('unlock-form').classList.remove('hidden');
@@ -498,6 +601,7 @@ $('unlock-form').addEventListener('submit', async (event) => {
     encryptionKey = key;
     editingBlocked = false;
     showBanner(null);
+    $('unlock-password').value = ''; // don't leave the master password in the DOM
     openHome();
   } catch {
     $('unlock-error').textContent = 'Password errata, riprova.';
@@ -1090,6 +1194,10 @@ $('password-form').addEventListener('submit', async (event) => {
     clearInterval(retryTimer);
     retryTimer = null;
     showBanner(null);
+    // Don't leave either password sitting in the (closed) dialog inputs.
+    $('current-password-input').value = '';
+    $('new-password-input').value = '';
+    $('confirm-password-input').value = '';
     $('password-dialog').close();
     showToast('Password cambiata ✓');
   } catch {
@@ -1097,6 +1205,261 @@ $('password-form').addEventListener('submit', async (event) => {
     errorEl.classList.remove('hidden');
   } finally {
     $('password-save-button').disabled = false;
+  }
+});
+
+/* ═══════════ 11b. Encrypted backup: export ═══════════ */
+
+let pendingBackupWords = null; // the phrase shown in the open export dialog
+
+$('export-backup-button').addEventListener('click', async () => {
+  closeSettingsMenu();
+  pendingBackupWords = await generateRecoveryPhrase();
+
+  // Show the 24 words in a numbered grid.
+  const grid = $('word-grid');
+  grid.textContent = '';
+  for (const word of pendingBackupWords) {
+    const li = document.createElement('li');
+    li.textContent = word;
+    grid.append(li);
+  }
+  $('words-written-checkbox').checked = false;
+  $('backup-save-button').disabled = true;
+  $('backup-error').classList.add('hidden');
+  $('backup-dialog').showModal();
+});
+
+$('words-written-checkbox').addEventListener('change', (event) => {
+  $('backup-save-button').disabled = !event.target.checked;
+});
+
+$('backup-cancel-button').addEventListener('click', () => {
+  pendingBackupWords = null;
+  $('backup-dialog').close();
+});
+
+// However the dialog closes (button, Esc, lock): the words leave the DOM.
+$('backup-dialog').addEventListener('close', () => {
+  pendingBackupWords = null;
+  $('word-grid').textContent = '';
+});
+
+/* Hand a file to the native app's save panel. Returns 'saved' | 'cancelled'
+   | 'error', or null when not running inside the native app (plain browser
+   during development — the caller then falls back to a normal download). */
+async function nativeSaveFile(filename, content) {
+  const handler = window.webkit?.messageHandlers?.agenda;
+  if (!handler) return null;
+  try {
+    return await handler.postMessage({ action: 'saveBackup', filename, content });
+  } catch {
+    return 'error';
+  }
+}
+
+$('backup-save-button').addEventListener('click', async () => {
+  if (!pendingBackupWords) return;
+  const words = pendingBackupWords; // capture before any await
+  const errorEl = $('backup-error');
+  errorEl.classList.add('hidden');
+  $('backup-save-button').disabled = true;
+  try {
+    const envelope = await buildBackupEnvelope(words);
+    // If the dialog was dismissed (Esc / lock) while we were encrypting, the
+    // user cancelled: do NOT pop a save panel for a phrase they can't see.
+    if (!$('backup-dialog').open) return;
+
+    const content = JSON.stringify(envelope, null, 2);
+    const stamp = new Date(envelope.createdAt).toISOString().slice(0, 10);
+    const filename = `Agenda-backup-${stamp}.agendabackup`;
+
+    const result = await nativeSaveFile(filename, content);
+    if (result === null) {
+      // Development fallback: trigger a browser download.
+      const url = URL.createObjectURL(new Blob([content], { type: 'application/json' }));
+      const link = document.createElement('a');
+      link.href = url; link.download = filename;
+      link.click();
+      URL.revokeObjectURL(url);
+    } else if (result === 'cancelled') {
+      $('backup-save-button').disabled = false;
+      return; // user closed the save panel; leave the dialog open
+    } else if (result !== 'saved') {
+      throw new Error('save-failed');
+    }
+    pendingBackupWords = null;
+    $('backup-dialog').close();
+    showToast('Backup salvato ✓');
+  } catch {
+    errorEl.textContent = 'Impossibile salvare il file di backup. Riprova.';
+    errorEl.classList.remove('hidden');
+    $('backup-save-button').disabled = false;
+  }
+});
+
+/* ═══════════ 11c. Encrypted backup: restore ═══════════ */
+
+$('restore-link').addEventListener('click', () => {
+  $('restore-file-input').value = '';
+  $('restore-phrase-input').value = '';
+  $('restore-password-input').value = '';
+  $('restore-confirm-input').value = '';
+  $('restore-file-info').classList.add('hidden');
+  $('restore-error').classList.add('hidden');
+  $('restore-dialog').showModal();
+});
+
+let restoreInProgress = false; // true while a restore is mid-flight
+
+$('restore-cancel-button').addEventListener('click', () => {
+  if (restoreInProgress) return; // ignore clicks during an in-flight restore
+  $('restore-dialog').close();
+});
+
+// Block Esc from closing the dialog while a restore is running: closing
+// mid-flight would leave the flow half-done and pop the confirm sheet after
+// the dialog had already vanished.
+$('restore-dialog').addEventListener('cancel', (event) => {
+  if (restoreInProgress) event.preventDefault();
+});
+
+// However the dialog closes, wipe the recovery phrase, passwords and chosen
+// filename — they are as secret as the backup itself and must never linger
+// behind the lock screen.
+$('restore-dialog').addEventListener('close', () => {
+  $('restore-phrase-input').value = '';
+  $('restore-password-input').value = '';
+  $('restore-confirm-input').value = '';
+  $('restore-file-input').value = '';
+  $('restore-file-info').textContent = '';
+  $('restore-file-info').classList.add('hidden');
+});
+
+// Read the chosen file as text.
+function readFileText(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsText(file);
+  });
+}
+
+$('restore-file-input').addEventListener('change', () => {
+  const file = $('restore-file-input').files[0];
+  const info = $('restore-file-info');
+  if (file) {
+    info.textContent = `File scelto: ${file.name}`;
+    info.classList.remove('hidden');
+  } else {
+    info.classList.add('hidden');
+  }
+});
+
+$('restore-form').addEventListener('submit', async (event) => {
+  event.preventDefault();
+
+  // Claim the flow SYNCHRONOUSLY, before any await, so a double Enter/click
+  // cannot start two concurrent restores (they would race on the same etag).
+  if (restoreInProgress) return;
+  restoreInProgress = true;
+  $('restore-submit-button').disabled = true;
+  $('restore-cancel-button').disabled = true;
+
+  const errorEl = $('restore-error');
+  errorEl.classList.add('hidden');
+
+  const file = $('restore-file-input').files[0];
+  const words = parsePhrase($('restore-phrase-input').value);
+  const password = $('restore-password-input').value;
+  const confirmation = $('restore-confirm-input').value;
+
+  const fail = (msg) => { errorEl.textContent = msg; errorEl.classList.remove('hidden'); };
+
+  try {
+    if (!file) return fail('Scegli il file di backup.');
+    if (password.length < 8) return fail('La nuova password deve avere almeno 8 caratteri.');
+    if (password !== confirmation) return fail('Le due password non coincidono.');
+
+    // The recovery phrase checksum catches a typo before we even try to
+    // decrypt, so the user gets a precise message instead of a vague failure.
+    const check = await validateRecoveryPhrase(words);
+    if (!check.ok) return fail(check.error);
+
+    // Parse and sanity-check the backup file.
+    let envelope;
+    try {
+      envelope = JSON.parse(await readFileText(file));
+    } catch {
+      return fail('Il file scelto non è un backup di Agenda valido.');
+    }
+    if (!envelope || envelope.format !== 'agenda-backup-v1'
+        || typeof envelope.iv !== 'string' || typeof envelope.data !== 'string'
+        || !envelope.kdf?.salt) {
+      return fail('Il file scelto non è un backup di Agenda valido.');
+    }
+
+    // Decrypt the backup with the 24-word key — into a LOCAL. The in-memory
+    // key and app state stay untouched until the write below actually lands,
+    // so a failure can never leave the app half-restored behind the lock.
+    let restoredState;
+    try {
+      const salt = base64.decode(envelope.kdf.salt);
+      const key = await deriveBackupKey(words, salt, envelope.kdf.iter || KDF_ITERATIONS);
+      restoredState = await decryptEnvelope(key, envelope);
+    } catch {
+      return fail('Le 24 parole non aprono questo backup. Controllale e riprova.');
+    }
+
+    // Refresh our view of the disk right before writing: another client (or a
+    // deletion) may have changed it while we sat on the lock screen. This
+    // gives us the correct precondition (first-write vs. If-Match) and etag.
+    let onDisk = false;
+    let currentEtag = null;
+    try {
+      const stored = await fetchBlob();
+      if (stored) { onDisk = true; currentEtag = stored.etag; }
+    } catch {
+      return fail('Impossibile contattare il server. Riavvia l’app e riprova.');
+    }
+
+    // Replacing existing data is destructive — confirm first.
+    if (onDisk && !confirm('Su questo Mac ci sono già dei dati. Ripristinando il backup verranno SOSTITUITI. Continuare?')) {
+      return; // the finally re-enables the buttons
+    }
+
+    // Encrypt the restored data under a fresh key for THIS Mac (locals only).
+    const localSalt = crypto.getRandomValues(new Uint8Array(16));
+    const localKey = await deriveKey(password, localSalt, KDF_ITERATIONS);
+    const localEnvelope = await encryptState(localKey, localSalt, restoredState);
+    let newEtag;
+    try {
+      newEtag = await storeBlob(localEnvelope,
+        onDisk ? { etag: currentEtag } : { isFirstWrite: true });
+    } catch (storeError) {
+      return fail(storeError.message === 'conflict'
+        ? 'I dati su questo Mac sono cambiati in un’altra finestra. Riprova.'
+        : 'Impossibile salvare i dati ripristinati. Riprova.');
+    }
+
+    // The write landed — now adopt the restored key and data all together.
+    keySalt = localSalt;
+    encryptionKey = localKey;
+    appState = restoredState;
+    lastEnvelope = localEnvelope;
+    blobEtag = newEtag;
+    dataExistsOnDisk = true;
+    hasUnsavedChanges = false;
+    editingBlocked = false;
+
+    $('restore-dialog').close();
+    openHome();
+    showToast('Dati ripristinati ✓');
+  } finally {
+    restoreInProgress = false;
+    $('restore-submit-button').disabled = false;
+    $('restore-cancel-button').disabled = false;
   }
 });
 

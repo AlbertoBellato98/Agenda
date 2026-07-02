@@ -395,6 +395,53 @@ mark {
 /* Names are stored uppercase; show them uppercase while typing too */
 .uppercase-input { text-transform: uppercase; }
 
+/* ── Encrypted backup: 24-word recovery phrase ── */
+
+.word-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px 14px;
+  margin: 14px 0;
+  padding: 14px 16px;
+  list-style-position: inside;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-family: var(--font-code);
+  font-size: .88rem;
+  counter-reset: word;
+}
+.word-grid li::marker { color: var(--text-muted); }
+
+.restore-link {
+  margin-top: 18px;
+  font-size: .85rem;
+}
+
+#restore-dialog textarea {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  padding: 10px 12px;
+  font: inherit;
+  font-family: var(--font-code);
+  font-size: .9rem;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  resize: vertical;
+}
+#restore-dialog textarea:focus { outline: none; border-color: var(--interactive); }
+
+#restore-dialog input[type="file"] {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  font-size: .88rem;
+  color: var(--text-muted);
+}
+
 /* ── Home meta row + directory ───────────────── */
 
 .home-meta {

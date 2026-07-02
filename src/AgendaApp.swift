@@ -141,7 +141,7 @@ final class LocalServer {
 // MARK: - Application delegate
 
 final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate,
-                         WKNavigationDelegate, WKUIDelegate {
+                         WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandlerWithReply {
     private var window: NSWindow!
     private var webView: WKWebView!
     private var server: LocalServer!
@@ -260,6 +260,64 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate,
         }
     }
 
+    // File open panel — needed for the restore dialog's <input type="file">.
+    // Without this WKUIDelegate method the picker never appears in a WebView.
+    func webView(_ webView: WKWebView,
+                 runOpenPanelWith parameters: WKOpenPanelParameters,
+                 initiatedByFrame frame: WKFrameInfo,
+                 completionHandler: @escaping ([URL]?) -> Void) {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = parameters.allowsMultipleSelection
+        panel.beginSheetModal(for: window) { response in
+            completionHandler(response == .OK ? panel.urls : nil)
+        }
+    }
+
+    // MARK: Backup save bridge (WKScriptMessageHandlerWithReply)
+    //
+    // The page sends { action: "saveBackup", filename, content } and awaits
+    // a reply. We show a native Save panel and write the (already encrypted)
+    // content to wherever the user chooses — e.g. a USB stick. We reply with
+    // "saved", "cancelled", or "error" so the page can show the right toast.
+
+    func userContentController(_ controller: WKUserContentController,
+                               didReceive message: WKScriptMessage,
+                               replyHandler: @escaping (Any?, String?) -> Void) {
+        guard let body = message.body as? [String: Any],
+              body["action"] as? String == "saveBackup",
+              let filename = body["filename"] as? String,
+              let content = body["content"] as? String else {
+            replyHandler("error", nil)
+            return
+        }
+
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = filename
+        panel.canCreateDirectories = true
+        panel.title = "Salva backup Agenda"
+        panel.message = "Scegli dove salvare il backup cifrato (es. una chiavetta USB)."
+        panel.beginSheetModal(for: window) { response in
+            guard response == .OK, let url = panel.url else {
+                replyHandler("cancelled", nil)
+                return
+            }
+            // Write off the main thread: a large backup to a slow USB stick
+            // would otherwise beachball the UI (and stall if the stick is
+            // pulled mid-write). Reply back on the main thread.
+            DispatchQueue.global(qos: .userInitiated).async {
+                var result = "saved"
+                do {
+                    try content.write(to: url, atomically: true, encoding: .utf8)
+                } catch {
+                    result = "error"
+                }
+                DispatchQueue.main.async { replyHandler(result, nil) }
+            }
+        }
+    }
+
     // MARK: Clean shutdown
     //
     // Both ways of leaving — the red close button and Cmd+Q — are funneled
@@ -276,6 +334,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate,
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         if isQuitting { return .terminateNow }
         isQuitting = true
+
+        // A fatal-error path (missing Python, second instance, server timeout)
+        // can call terminate() before the window/WebView ever existed. With no
+        // page to flush, quit immediately instead of touching a nil WebView.
+        guard let webView = webView else {
+            server?.stop()
+            return .terminateNow
+        }
 
         // Ask the page to persist any unsaved note. This is an awaited save
         // with no size limit — unlike a browser tab-close, nothing is lost.
@@ -319,9 +385,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate,
         window.setFrameAutosaveName("AgendaMainWindow") // remember size/position
 
         let config = WKWebViewConfiguration()
+        // Bridge for the encrypted-backup save panel: the page calls
+        // window.webkit.messageHandlers.agenda.postMessage({...}) and awaits
+        // a reply. WithReply lets us report saved / cancelled / error back.
+        config.userContentController.addScriptMessageHandler(
+            self, contentWorld: .page, name: "agenda")
+
         webView = WKWebView(frame: window.contentView!.bounds, configuration: config)
         webView.autoresizingMask = [.width, .height]
-        webView.uiDelegate = self // routes confirm()/alert()/prompt() to native sheets
+        webView.uiDelegate = self // routes confirm()/alert()/prompt()/file-open to native panels
         window.contentView!.addSubview(webView)
     }
 

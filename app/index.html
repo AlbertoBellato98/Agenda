@@ -52,6 +52,11 @@
       Questo browser non supporta la cifratura necessaria.
       Apri l'app con Safari, Chrome o Firefox aggiornati.
     </p>
+
+    <!-- Restore entry point: also the first thing you use on a NEW Mac -->
+    <button id="restore-link" class="quiet-button restore-link hidden">
+      Ripristina da un backup…
+    </button>
   </div>
 </section>
 
@@ -66,6 +71,7 @@
     </div>
     <div id="settings-menu" class="menu hidden" role="menu">
       <button id="change-password-button" role="menuitem">Cambia password</button>
+      <button id="export-backup-button" role="menuitem">Esporta backup…</button>
     </div>
   </header>
 
@@ -209,9 +215,71 @@
   </form>
 </dialog>
 
+<!-- ════════ Dialog: export encrypted backup (24-word phrase) ════════ -->
+<dialog id="backup-dialog">
+  <h3>Esporta backup</h3>
+  <p class="small-note">
+    Il backup è un file cifrato: puoi salvarlo su una chiavetta e usarlo
+    per ripristinare tutto su un altro Mac. Si apre <strong>solo</strong>
+    con le 24 parole qui sotto.
+  </p>
+
+  <div class="password-warning">
+    ⚠️ <strong>Scrivi le 24 parole su carta, in ordine.</strong>
+    Senza di esse il file di backup è inutilizzabile — da chiunque, per sempre.
+  </div>
+
+  <ol id="word-grid" class="word-grid"></ol>
+
+  <label class="understood-check">
+    <input type="checkbox" id="words-written-checkbox"> Ho scritto le 24 parole
+  </label>
+  <p id="backup-error" class="form-error hidden"></p>
+  <div class="dialog-actions">
+    <button type="button" id="backup-cancel-button" class="quiet-button">Annulla</button>
+    <button type="button" id="backup-save-button" class="primary-button" disabled>
+      Salva file backup…
+    </button>
+  </div>
+</dialog>
+
+<!-- ════════ Dialog: restore from an encrypted backup ════════ -->
+<dialog id="restore-dialog">
+  <form id="restore-form" method="dialog">
+    <h3>Ripristina da un backup</h3>
+
+    <label>File di backup
+      <input type="file" id="restore-file-input" accept=".agendabackup,application/json" required>
+    </label>
+    <p id="restore-file-info" class="small-note hidden"></p>
+
+    <label>Le 24 parole (separate da spazi)
+      <textarea id="restore-phrase-input" rows="3" required
+                autocomplete="off" autocapitalize="none" spellcheck="false"
+                placeholder="abaco abbaglio abbinato …"></textarea>
+    </label>
+
+    <label>Nuova password per questo Mac
+      <input type="password" id="restore-password-input" autocomplete="new-password"
+             minlength="8" placeholder="Minimo 8 caratteri" required>
+    </label>
+    <label>Ripeti la nuova password
+      <input type="password" id="restore-confirm-input" autocomplete="new-password"
+             minlength="8" required>
+    </label>
+
+    <p id="restore-error" class="form-error hidden"></p>
+    <div class="dialog-actions">
+      <button type="button" id="restore-cancel-button" class="quiet-button">Annulla</button>
+      <button type="submit" id="restore-submit-button" class="primary-button">Ripristina</button>
+    </div>
+  </form>
+</dialog>
+
 <!-- Transient confirmation toast -->
 <div id="toast" class="toast hidden" role="status" aria-live="polite">Salvato ✓</div>
 
+<script src="/wordlist.js"></script>
 <script src="/app.js"></script>
 </body>
 </html>
