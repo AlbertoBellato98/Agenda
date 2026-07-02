@@ -1,0 +1,19 @@
+# ── Privacy belt-and-braces ─────────────────────────────────────────
+# User data lives OUTSIDE this repo (~/Documents/Agenda), so it can never
+# be committed. These rules are extra safety nets in case an encrypted
+# blob or a data folder ever ends up in the project tree by mistake.
+*.dat
+dati/
+backups/
+
+# ── Build output ────────────────────────────────────────────────────
+build/
+Agenda.app/
+*.iconset
+
+# ── Python / macOS / tooling cruft ──────────────────────────────────
+__pycache__/
+*.pyc
+.DS_Store
+.claude/
+.playwright-mcp/

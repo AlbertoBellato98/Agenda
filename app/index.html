@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Agenda</title>
+<link rel="stylesheet" href="/style.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%92%3C/text%3E%3C/svg%3E">
+</head>
+<body>
+
+<!-- Persistent banner for save errors / conflicts -->
+<div id="banner" class="banner hidden" role="alert"></div>
+
+<!-- ════════ View: lock screen (unlock or first-time setup) ════════ -->
+<section id="view-lock" class="view lock-screen hidden">
+  <div class="lock-card" id="lock-card">
+    <p class="lock-emblem" aria-hidden="true">📒</p>
+    <h1 class="wordmark">Agenda</h1>
+
+    <!-- Normal unlock -->
+    <form id="unlock-form" class="hidden" autocomplete="on">
+      <p class="lock-hint">Inserisci la password per aprire i tuoi dati.</p>
+      <input type="password" id="unlock-password" placeholder="Password"
+             autocomplete="current-password" required>
+      <p id="unlock-error" class="form-error hidden">Password errata, riprova.</p>
+      <button type="submit" class="primary-button">Sblocca</button>
+    </form>
+
+    <!-- First run: create the password -->
+    <form id="setup-form" class="hidden" autocomplete="on">
+      <p class="lock-hint">Benvenuto! Crea la password che proteggerà i dati dei tuoi clienti.</p>
+      <input type="password" id="setup-password" placeholder="Nuova password (minimo 8 caratteri)"
+             autocomplete="new-password" minlength="8" required>
+      <input type="password" id="setup-confirm" placeholder="Ripeti la password"
+             autocomplete="new-password" minlength="8" required>
+      <div class="password-warning">
+        ⚠️ <strong>Attenzione:</strong> se dimentichi la password, i dati
+        <strong>NON</strong> potranno essere recuperati da nessuno.
+        Conservala in un posto sicuro.
+      </div>
+      <label class="understood-check">
+        <input type="checkbox" id="understood-checkbox"> Ho capito
+      </label>
+      <p id="setup-error" class="form-error hidden"></p>
+      <button type="submit" id="setup-button" class="primary-button" disabled>Crea e apri l'Agenda</button>
+    </form>
+
+    <p id="lock-spinner" class="lock-spinner hidden">Sblocco in corso…</p>
+    <p id="crypto-error" class="form-error hidden">
+      Questo browser non supporta la cifratura necessaria.
+      Apri l'app con Safari, Chrome o Firefox aggiornati.
+    </p>
+  </div>
+</section>
+
+<!-- ════════ View: home (search-first) ════════ -->
+<section id="view-home" class="view hidden">
+  <header class="topbar">
+    <span class="wordmark-small">📒 Agenda</span>
+    <div class="topbar-actions">
+      <button id="settings-button" class="ghost-button" title="Impostazioni"
+              aria-label="Impostazioni" aria-haspopup="menu" aria-expanded="false">⋯</button>
+      <button id="lock-button" class="ghost-button" title="Blocca l'app">🔒 Blocca</button>
+    </div>
+    <div id="settings-menu" class="menu hidden" role="menu">
+      <button id="change-password-button" role="menuitem">Cambia password</button>
+    </div>
+  </header>
+
+  <div class="home-stage">
+    <h2 class="home-title">Chi stai cercando?</h2>
+
+    <!-- The floating search panel: the one "3D" element of the app -->
+    <div class="search-panel" id="search-panel">
+      <form id="search-form" role="search">
+        <input id="search-input" type="text"
+               placeholder="Codice cliente, nome o cognome…"
+               autocomplete="off" spellcheck="false"
+               role="combobox" aria-expanded="false"
+               aria-controls="search-dropdown" aria-autocomplete="list">
+        <button type="submit" id="search-button" class="primary-button">Cerca</button>
+      </form>
+      <ul id="search-dropdown" class="dropdown hidden" role="listbox"></ul>
+    </div>
+
+    <div class="home-meta">
+      <span id="client-count" class="muted"></span>
+      <span class="dot-separator" aria-hidden="true">·</span>
+      <button id="new-client-button" class="quiet-button">+ Nuovo cliente</button>
+      <span class="dot-separator" aria-hidden="true">·</span>
+      <button id="browse-button" class="quiet-button" aria-expanded="false">Tutti i clienti</button>
+    </div>
+
+    <div id="client-directory" class="directory hidden"></div>
+
+    <div id="home-empty" class="empty-state hidden">
+      <p aria-hidden="true">📇</p>
+      <p>Nessun cliente ancora.<br>Aggiungi il primo con <strong>+ Nuovo cliente</strong>.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ════════ View: client profile ════════ -->
+<section id="view-profile" class="view hidden">
+  <header class="topbar">
+    <button id="back-button" class="ghost-button">← Agenda</button>
+    <div class="topbar-actions">
+      <button id="lock-button-2" class="ghost-button" title="Blocca l'app" aria-label="Blocca l'app">🔒</button>
+    </div>
+  </header>
+
+  <div class="page">
+    <div class="profile-header">
+      <h2 id="profile-name" class="profile-title"></h2>
+      <div class="profile-props">
+        <span id="profile-code" class="code-chip"></span>
+        <span id="profile-stats" class="muted"></span>
+        <span class="profile-actions">
+          <button id="edit-client-button" class="quiet-button">Modifica</button>
+          <button id="delete-client-button" class="quiet-button danger">Elimina</button>
+        </span>
+      </div>
+    </div>
+
+    <hr class="rule">
+
+    <div class="composer">
+      <textarea id="note-input" rows="2"
+                placeholder="Scrivi una nuova nota…"></textarea>
+      <div class="composer-actions">
+        <span class="muted kbd-hint">Cmd+Invio per salvare</span>
+        <button id="add-note-button" class="primary-button">Aggiungi nota</button>
+      </div>
+    </div>
+
+    <h3 id="diary-heading" class="section-label">Diario</h3>
+    <div id="note-list"></div>
+    <div id="notes-empty" class="empty-state hidden">
+      <p aria-hidden="true">📝</p>
+      <p>Ancora nessuna nota per questo cliente.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ════════ Dialog: create / edit client ════════ -->
+<dialog id="client-dialog">
+  <form id="client-form" method="dialog">
+    <h3 id="client-dialog-title">Nuovo cliente</h3>
+    <label>Codice cliente
+      <input type="text" id="client-code-input" placeholder="es. CL0042" required>
+    </label>
+    <label>Nome
+      <input type="text" id="client-first-name-input" placeholder="Nome" required>
+    </label>
+    <label>Cognome
+      <input type="text" id="client-last-name-input" placeholder="Cognome" required>
+    </label>
+    <p id="client-form-error" class="form-error hidden"></p>
+    <div class="dialog-actions">
+      <button type="button" id="client-cancel-button" class="quiet-button">Annulla</button>
+      <button type="submit" id="client-save-button" class="primary-button">Salva</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- ════════ Dialog: change password ════════ -->
+<dialog id="password-dialog">
+  <form id="password-form" method="dialog">
+    <h3>Cambia password</h3>
+    <label>Password attuale
+      <input type="password" id="current-password-input" autocomplete="current-password" required>
+    </label>
+    <label>Nuova password
+      <input type="password" id="new-password-input" autocomplete="new-password"
+             minlength="8" placeholder="Minimo 8 caratteri" required>
+    </label>
+    <label>Ripeti la nuova password
+      <input type="password" id="confirm-password-input" autocomplete="new-password"
+             minlength="8" required>
+    </label>
+    <p class="small-note">I backup precedenti restano protetti dalla vecchia password.</p>
+    <p id="password-form-error" class="form-error hidden"></p>
+    <div class="dialog-actions">
+      <button type="button" id="password-cancel-button" class="quiet-button">Annulla</button>
+      <button type="submit" id="password-save-button" class="primary-button">Cambia</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Transient confirmation toast -->
+<div id="toast" class="toast hidden" role="status" aria-live="polite">Salvato ✓</div>
+
+<script src="/app.js"></script>
+</body>
+</html>

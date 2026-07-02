@@ -1,0 +1,71 @@
+═══════════════════════════════════════════════
+  AGENDA — La tua rubrica clienti protetta
+═══════════════════════════════════════════════
+
+COME SI AVVIA
+─────────────
+Fai doppio click su "Agenda" (l'app con l'icona del taccuino,
+in questa cartella). Si apre la finestra dell'app. Fatto.
+
+È una vera app del Mac, non una pagina del browser: ha la sua
+finestra e la sua icona nel Dock. Per chiuderla basta chiudere
+la finestra (pallino rosso) o premere Cmd+Q.
+
+LA PASSWORD  ⚠️ IMPORTANTE
+──────────────────────────
+La prima volta l'app ti chiede di CREARE una password.
+Tutti i dati dei clienti vengono cifrati con questa password:
+senza di essa il file dei dati è illeggibile per chiunque.
+
+⚠️ SE DIMENTICHI LA PASSWORD, I DATI NON SONO RECUPERABILI.
+   Da nessuno, nemmeno da un tecnico. Scrivila e conservala
+   in un posto sicuro. Puoi anche lasciare che il Mac la salvi
+   nel Portachiavi quando te lo propone.
+
+DOVE SONO I DATI
+────────────────
+Nella cartella "Agenda" dentro i tuoi Documenti
+(Documenti ▸ Agenda):
+  - agenda.dat        → i tuoi dati (cifrati, illeggibili senza password)
+  - backups/          → le copie di sicurezza automatiche:
+      · le ultime 20 copie recenti (una ogni 5 minuti al massimo)
+      · più una copia al giorno (agenda-daily-...), tenuta 14 giorni
+
+Ogni salvataggio crea automaticamente una copia di sicurezza.
+Se il Mac sincronizza i Documenti su iCloud, anche meglio:
+su iCloud finiscono solo dati cifrati, ed è un backup in più.
+
+RIPRISTINARE UN BACKUP (solo in caso di emergenza)
+──────────────────────────────────────────────────
+1. Chiudi l'app (pallino rosso o Cmd+Q).
+2. Vai in Documenti ▸ Agenda ▸ backups, scegli la copia con
+   la data che ti interessa e copiala nella cartella
+   Documenti ▸ Agenda.
+3. Cancella il file "agenda.dat" e rinomina la copia in
+   "agenda.dat".
+4. Riapri l'app con doppio click.
+
+I backup si aprono con la stessa password. Unica eccezione:
+se hai cambiato password, i backup fatti PRIMA del cambio
+si aprono con la VECCHIA password.
+
+PICCOLE COSE UTILI
+──────────────────
+- L'app si blocca da sola dopo 10 minuti che non la usi:
+  basta reinserire la password. Puoi anche bloccarla a mano
+  con il tasto "Blocca" in alto a destra.
+- In home scrivi nella barra di ricerca: la tendina si aggiorna
+  mentre digiti. Frecce ↑ ↓ per scegliere, Invio (o click, o il
+  tasto Cerca) per aprire la scheda.
+- La ricerca trova anche le parole scritte dentro le note.
+- Nella scheda di un cliente, scrivi la nota e premi
+  Cmd+Invio per salvarla al volo.
+- "Tutti i clienti" in home mostra l'elenco completo.
+- Chiudendo la finestra l'app salva sempre prima di uscire.
+
+PER CHI SVILUPPA (nota tecnica)
+───────────────────────────────
+L'app è un binario Swift nativo (finestra + WKWebView) che avvia
+un piccolo server Python di sistema su 127.0.0.1. Per ricompilarla
+dopo una modifica al codice: ./build.sh   (serve swiftc + python3).
+Dettagli in README.md.

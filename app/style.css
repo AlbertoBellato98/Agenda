@@ -1,0 +1,601 @@
+/* Agenda — dark, Notion-like theme.
+   Design tokens first, then layout, then components.
+   All fonts are system fonts: nothing is downloaded from the network. */
+
+:root {
+  /* Palette: quiet grays on a near-black desk */
+  --bg: #161618;            /* page canvas */
+  --surface: #1e1e21;       /* cards and panels */
+  --surface-raised: #26262a;/* hovered / raised elements */
+  --border: #2e2e33;        /* hairline borders */
+  --text: #e8e8ea;          /* primary text */
+  --text-muted: #9a9aa3;    /* secondary text */
+  --interactive: #8ea9ff;   /* links, focus, primary buttons */
+  --interactive-strong: #a7bcff;
+  --highlight: #e3b34c;     /* highlighter amber: search matches ONLY */
+  --danger: #e5636b;
+  --success: #57b884;
+
+  /* Typography: three local voices */
+  --font-display: ui-serif, "New York", Georgia, serif;      /* titles */
+  --font-body: -apple-system, BlinkMacSystemFont, ui-sans-serif, "Segoe UI", sans-serif;
+  --font-code: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace; /* client codes */
+
+  /* Depth: layered shadows + a 1px top light, like a card on a dark desk */
+  --shadow-card: inset 0 1px 0 rgba(255, 255, 255, .05),
+                 0 1px 2px rgba(0, 0, 0, .4),
+                 0 8px 24px rgba(0, 0, 0, .35);
+  --shadow-float: inset 0 1px 0 rgba(255, 255, 255, .06),
+                  0 2px 6px rgba(0, 0, 0, .45),
+                  0 18px 48px rgba(0, 0, 0, .55);
+  --radius: 10px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+.hidden { display: none !important; }
+.muted { color: var(--text-muted); }
+
+::selection { background: rgba(142, 169, 255, .3); }
+
+:focus-visible {
+  outline: 2px solid var(--interactive);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ── Top bar ─────────────────────────────────── */
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 20px;
+  background: rgba(22, 22, 24, .85);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+}
+
+.wordmark-small {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  letter-spacing: .01em;
+}
+
+.topbar-actions { display: flex; gap: 4px; }
+
+.menu {
+  position: absolute;
+  right: 20px;
+  top: 50px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-float);
+  padding: 5px;
+  min-width: 180px;
+}
+.menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--text);
+  padding: 8px 12px;
+  font: inherit;
+  font-size: .95rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.menu button:hover { background: rgba(255, 255, 255, .06); }
+
+/* ── Buttons ─────────────────────────────────── */
+
+button { font-family: inherit; }
+
+.primary-button {
+  background: var(--interactive);
+  color: #14161f;
+  font-size: .95rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  padding: 9px 18px;
+  cursor: pointer;
+  transition: background .15s;
+}
+.primary-button:hover { background: var(--interactive-strong); }
+.primary-button:disabled { opacity: .4; cursor: not-allowed; }
+
+.ghost-button {
+  background: transparent;
+  color: var(--text-muted);
+  font-size: .9rem;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.ghost-button:hover { background: rgba(255, 255, 255, .06); color: var(--text); }
+
+.quiet-button {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: .9rem;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.quiet-button:hover { background: rgba(255, 255, 255, .06); color: var(--text); }
+.quiet-button.danger:hover { color: var(--danger); }
+
+/* ── Lock screen ─────────────────────────────── */
+
+.lock-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.lock-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow-float);
+  padding: 44px 40px;
+  width: 100%;
+  max-width: 420px;
+  text-align: center;
+}
+.lock-emblem { font-size: 2.4rem; margin: 0; }
+.wordmark {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 600;
+  margin: 6px 0 2px;
+  letter-spacing: .01em;
+}
+.lock-hint { color: var(--text-muted); margin: 6px 0 14px; }
+
+.lock-card input[type="password"] {
+  width: 100%;
+  padding: 12px 14px;
+  margin: 6px 0;
+  font-size: 1.05rem;
+  font-family: inherit;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.lock-card input[type="password"]:focus {
+  outline: none;
+  border-color: var(--interactive);
+}
+.lock-card .primary-button { width: 100%; margin-top: 14px; padding: 12px; }
+
+.password-warning {
+  text-align: left;
+  background: rgba(227, 179, 76, .08);
+  border: 1px solid rgba(227, 179, 76, .3);
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: .9rem;
+  margin: 14px 0 10px;
+}
+.understood-check {
+  display: block;
+  text-align: left;
+  margin: 8px 0;
+  cursor: pointer;
+  user-select: none;
+  font-size: .95rem;
+}
+.lock-spinner { color: var(--text-muted); }
+.form-error { color: var(--danger); font-size: .92rem; }
+
+/* ── Home: the search stage ──────────────────── */
+
+.home-stage {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 13vh 20px 80px;
+}
+
+.home-title {
+  font-family: var(--font-display);
+  font-size: 1.9rem;
+  font-weight: 600;
+  text-align: center;
+  margin: 0 0 26px;
+  letter-spacing: .01em;
+}
+
+/* The floating card. JS adds a gentle pointer-following tilt;
+   everything still works if that never runs. */
+.search-panel {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow-float);
+  padding: 10px;
+  transform-style: preserve-3d;
+  will-change: transform;
+  transition: transform .25s ease-out;
+}
+
+#search-form { display: flex; gap: 10px; }
+
+#search-input {
+  flex: 1;
+  font-size: 1.1rem;
+  font-family: inherit;
+  padding: 12px 14px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid transparent;
+  border-radius: 8px;
+}
+#search-input::placeholder { color: var(--text-muted); }
+#search-input:focus { outline: none; border-color: var(--interactive); }
+
+/* ── Live results dropdown ───────────────────── */
+
+.dropdown {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 5px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow-float);
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+.dropdown li {
+  padding: 10px 12px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+.dropdown li + li { margin-top: 2px; }
+.dropdown li:hover, .dropdown li.selected { background: rgba(255, 255, 255, .07); }
+.dropdown li.no-results {
+  cursor: default;
+  color: var(--text-muted);
+  text-align: center;
+}
+.dropdown li.no-results:hover { background: none; }
+
+.result-name { font-weight: 600; }
+.result-note-line {
+  display: block;
+  color: var(--text-muted);
+  font-size: .88rem;
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Search matches use the highlighter amber — nothing else does */
+mark {
+  background: rgba(227, 179, 76, .25);
+  color: var(--highlight);
+  border-radius: 3px;
+  padding: 0 2px;
+}
+
+/* ── Client code chip (monospace, used everywhere) ── */
+
+.code-chip {
+  font-family: var(--font-code);
+  font-size: .8rem;
+  color: var(--interactive);
+  background: rgba(142, 169, 255, .1);
+  border: 1px solid rgba(142, 169, 255, .25);
+  border-radius: 6px;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+
+/* ── Home meta row + directory ───────────────── */
+
+.home-meta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 18px;
+  font-size: .9rem;
+}
+.dot-separator { color: var(--text-muted); }
+
+.directory { margin-top: 22px; }
+
+.directory-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background .12s;
+}
+.directory-row:hover { background: var(--surface); }
+.directory-row .row-name { font-weight: 500; }
+.directory-row .row-detail { color: var(--text-muted); font-size: .85rem; white-space: nowrap; }
+
+.empty-state {
+  text-align: center;
+  color: var(--text-muted);
+  margin-top: 48px;
+}
+.empty-state p:first-child { font-size: 2.6rem; margin: 0 0 6px; }
+
+/* ── Profile page (Notion-like document) ─────── */
+
+.page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 40px 24px 100px;
+}
+
+.profile-title {
+  font-family: var(--font-display);
+  font-size: 2.2rem;
+  font-weight: 600;
+  margin: 0 0 10px;
+  letter-spacing: .01em;
+}
+
+.profile-props {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: .9rem;
+}
+.profile-actions {
+  display: inline-flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity .15s;
+}
+.profile-header:hover .profile-actions,
+.profile-actions:focus-within { opacity: 1; }
+
+.rule {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 22px 0;
+}
+
+/* ── Note composer ───────────────────────────── */
+
+.composer {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
+  padding: 12px;
+  margin-bottom: 34px;
+}
+.composer textarea {
+  display: block;
+  width: 100%;
+  font: inherit;
+  color: var(--text);
+  background: transparent;
+  border: none;
+  resize: none;
+  min-height: 52px;
+  padding: 4px 6px;
+}
+.composer textarea:focus { outline: none; }
+.composer:focus-within {
+  border-color: var(--interactive); /* clear focus cue on the borderless area */
+}
+.composer-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+}
+.kbd-hint { font-size: .8rem; }
+
+/* ── Notes diary ─────────────────────────────── */
+
+.section-label {
+  color: var(--text-muted);
+  font-size: .78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  margin: 0 0 12px 4px;
+}
+
+.note {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  transition: border-color .15s;
+}
+.note:hover { border-color: #3a3a41; }
+
+.note-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: .82rem;
+}
+.note-actions { display: inline-flex; gap: 2px; opacity: 0; transition: opacity .15s; }
+.note:hover .note-actions, .note-actions:focus-within { opacity: 1; }
+.note-actions button {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: .82rem;
+  padding: 2px 8px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.note-actions button:hover { color: var(--text); background: rgba(255, 255, 255, .06); }
+
+.note-text {
+  margin: 6px 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+.note textarea {
+  width: 100%;
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  padding: 10px;
+  border: 1px solid var(--interactive);
+  border-radius: 8px;
+  resize: vertical;
+  margin-top: 8px;
+}
+.note-edit-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.note.flash { animation: note-flash 1.6s ease-out; }
+@keyframes note-flash {
+  0%, 40% { border-color: var(--highlight); background: rgba(227, 179, 76, .07); }
+  100% { border-color: var(--border); background: var(--surface); }
+}
+
+/* ── Dialogs ─────────────────────────────────── */
+
+dialog {
+  background: var(--surface-raised);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow-float);
+  padding: 26px 28px;
+  width: 100%;
+  max-width: 420px;
+}
+dialog::backdrop { background: rgba(0, 0, 0, .55); }
+dialog h3 {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  margin: 0 0 16px;
+}
+dialog label {
+  display: block;
+  margin-bottom: 12px;
+  font-size: .88rem;
+  color: var(--text-muted);
+}
+dialog input {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  padding: 10px 12px;
+  font-size: 1rem;
+  font-family: inherit;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+dialog input:focus { outline: none; border-color: var(--interactive); }
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 18px;
+}
+.small-note { font-size: .82rem; color: var(--text-muted); }
+
+/* ── Banner and toast ────────────────────────── */
+
+.banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: var(--danger);
+  color: #1a1214;
+  font-weight: 500;
+  text-align: center;
+  padding: 10px 16px;
+  font-size: .93rem;
+}
+
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--surface-raised);
+  color: var(--success);
+  border: 1px solid var(--border);
+  padding: 9px 20px;
+  border-radius: 999px;
+  box-shadow: var(--shadow-float);
+  font-size: .9rem;
+  z-index: 100;
+  animation: toast-in .2s ease-out;
+}
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* ── Motion preferences ──────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    transition-duration: .01ms !important;
+  }
+}
+
+/* Touch devices can't hover, so always show the edit/delete actions there
+   — regardless of screen width (a tablet is wide but still touch-only). */
+@media (hover: none) {
+  .profile-actions { opacity: 1; }
+  .note-actions { opacity: 1; }
+}
+
+@media (max-width: 560px) {
+  #search-form { flex-direction: column; }
+  .home-stage { padding-top: 8vh; }
+}
