@@ -633,6 +633,28 @@ mark {
   resize: vertical;
   margin-top: 8px;
 }
+.note-when-edit {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  font-size: .85rem;
+  color: var(--text-muted);
+}
+.note-when-edit input[type="datetime-local"] {
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 10px;
+  color-scheme: dark; /* dark-styled native picker */
+}
+.note-when-edit input[type="datetime-local"]:focus {
+  outline: none;
+  border-color: var(--interactive);
+}
+
 .note-edit-actions {
   display: flex;
   gap: 8px;

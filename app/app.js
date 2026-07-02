@@ -893,11 +893,7 @@ function buildNoteElement(note) {
   const meta = document.createElement('div');
   meta.className = 'note-meta';
   const when = document.createElement('span');
-  let label = dateFormatFull.format(note.createdAt);
-  if (note.updatedAt > note.createdAt) {
-    label += ` · modificata il ${dateFormatShort.format(note.updatedAt)}`;
-  }
-  when.textContent = label;
+  when.textContent = dateFormatFull.format(note.createdAt);
 
   const actions = document.createElement('span');
   actions.className = 'note-actions';
@@ -927,6 +923,15 @@ function buildNoteElement(note) {
   return noteEl;
 }
 
+/* Epoch ms → "YYYY-MM-DDTHH:MM" in LOCAL time, the format the
+   datetime-local input expects. (toISOString would shift to UTC.) */
+function toDatetimeLocalValue(epochMs) {
+  const d = new Date(epochMs);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` +
+         `T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 function editNoteInline(noteEl, note) {
   if (editingBlocked) return;
   const textEl = noteEl.querySelector('.note-text');
@@ -935,6 +940,16 @@ function editNoteInline(noteEl, note) {
   const textarea = document.createElement('textarea');
   textarea.value = note.text;
   textarea.rows = Math.max(3, note.text.split('\n').length);
+
+  // Date and time are editable too — useful to file a note under the day
+  // the conversation actually happened. The diary re-sorts on save.
+  const whenLabel = document.createElement('label');
+  whenLabel.className = 'note-when-edit';
+  whenLabel.textContent = 'Data e ora ';
+  const whenInput = document.createElement('input');
+  whenInput.type = 'datetime-local';
+  whenInput.value = toDatetimeLocalValue(note.createdAt);
+  whenLabel.append(whenInput);
 
   const editActions = document.createElement('div');
   editActions.className = 'note-edit-actions';
@@ -947,18 +962,31 @@ function editNoteInline(noteEl, note) {
   saveButton.textContent = 'Salva';
   saveButton.addEventListener('click', () => {
     if (editingBlocked) return; // a conflict landed while editing: don't commit
+    let changed = false;
+
     const newText = textarea.value.trim();
     if (newText && newText !== note.text) {
       note.text = newText;
+      changed = true;
+    }
+
+    // An empty or unparsable picker value keeps the original timestamp.
+    const newWhen = whenInput.value ? new Date(whenInput.value).getTime() : NaN;
+    if (Number.isFinite(newWhen) && newWhen !== note.createdAt) {
+      note.createdAt = newWhen;
+      changed = true;
+    }
+
+    if (changed) {
       note.updatedAt = Date.now();
       findClient(openClientId).updatedAt = Date.now();
       scheduleSave();
     }
-    renderProfile();
+    renderProfile(); // re-sorts the diary if the date moved
   });
   editActions.append(cancelButton, saveButton);
 
-  textEl.replaceWith(textarea, editActions);
+  textEl.replaceWith(textarea, whenLabel, editActions);
   textarea.focus();
 }
 
