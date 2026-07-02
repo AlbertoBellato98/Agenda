@@ -397,21 +397,46 @@ mark {
 
 /* ── Encrypted backup: 24-word recovery phrase ── */
 
+/* Give the export dialog room for three columns of numbered word chips,
+   so even the longest words (e.g. "spigoloso") never wrap. */
+#backup-dialog { max-width: 500px; }
+
 .word-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 6px 14px;
+  gap: 8px;
   margin: 14px 0;
-  padding: 14px 16px;
-  list-style-position: inside;
+  padding: 14px;
+  list-style: none;
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 10px;
-  font-family: var(--font-code);
-  font-size: .88rem;
-  counter-reset: word;
 }
-.word-grid li::marker { color: var(--text-muted); }
+.word-grid li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 7px 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-family: var(--font-code);
+  font-size: .9rem;
+  white-space: nowrap; /* each word stays on one line */
+}
+.word-num {
+  flex: none;
+  min-width: 1.7em;
+  text-align: right;
+  color: var(--text-muted);
+}
+.word-text { color: var(--text); }
+
+/* On a narrow window (or the browser dev fallback) drop to two columns
+   rather than squeezing three. */
+@media (max-width: 520px) {
+  .word-grid { grid-template-columns: repeat(2, 1fr); }
+}
 
 .restore-link {
   margin-top: 18px;

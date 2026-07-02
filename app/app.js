@@ -1216,14 +1216,21 @@ $('export-backup-button').addEventListener('click', async () => {
   closeSettingsMenu();
   pendingBackupWords = await generateRecoveryPhrase();
 
-  // Show the 24 words in a numbered grid.
+  // Show the 24 words as numbered chips — the explicit number keeps them
+  // aligned even when a word is long, and reads in copy order (1→24).
   const grid = $('word-grid');
   grid.textContent = '';
-  for (const word of pendingBackupWords) {
+  pendingBackupWords.forEach((word, index) => {
     const li = document.createElement('li');
-    li.textContent = word;
+    const num = document.createElement('span');
+    num.className = 'word-num';
+    num.textContent = `${index + 1}.`;
+    const text = document.createElement('span');
+    text.className = 'word-text';
+    text.textContent = word;
+    li.append(num, text);
     grid.append(li);
-  }
+  });
   $('words-written-checkbox').checked = false;
   $('backup-save-button').disabled = true;
   $('backup-error').classList.add('hidden');
