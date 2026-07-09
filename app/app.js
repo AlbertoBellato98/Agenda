@@ -290,13 +290,36 @@ function clientsSortedByName() {
     `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`, 'it'));
 }
 
+/* ── Directory sorting ──────────────────────────────────────────────
+   The home list can be ordered five ways. The choice is remembered in
+   localStorage — a plain preference string, never client data. */
+
+const DIRECTORY_SORTS = {
+  cognome:  (a, b) => `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`, 'it'),
+  nome:     (a, b) => `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`, 'it'),
+  codice:   (a, b) => a.code.localeCompare(b.code, 'it', { numeric: true }),
+  modifica: (a, b) => (b.updatedAt || 0) - (a.updatedAt || 0), // most recent first
+  stato:    (a, b) =>
+    (CLIENT_STATUSES[clientStatus(a)].sortOrder - CLIENT_STATUSES[clientStatus(b)].sortOrder)
+    || DIRECTORY_SORTS.cognome(a, b), // same color → alphabetical
+};
+
+let directorySort = localStorage.getItem('agenda-sort');
+if (!DIRECTORY_SORTS[directorySort]) directorySort = 'cognome';
+
+function clientsSortedForDirectory() {
+  return [...appState.clients].sort(DIRECTORY_SORTS[directorySort]);
+}
+
 /* Pipeline status of a client — a simple traffic light:
    prospect = being worked (yellow), client = won (green),
-   ko = not interested / unreachable (red). */
+   noanswer = doesn't pick up (white), ko = not interested (red).
+   sortOrder drives the "Stato" sorting on the home page. */
 const CLIENT_STATUSES = {
-  prospect: { label: 'PROSPECT', cssClass: 'status-prospect' },
-  client:   { label: 'CLIENTE',  cssClass: 'status-client' },
-  ko:       { label: 'KO',       cssClass: 'status-ko' },
+  prospect: { label: 'PROSPECT',     cssClass: 'status-prospect', sortOrder: 0 },
+  client:   { label: 'CLIENTE',      cssClass: 'status-client',   sortOrder: 1 },
+  noanswer: { label: 'NON RISPONDE', cssClass: 'status-noanswer', sortOrder: 2 },
+  ko:       { label: 'KO',           cssClass: 'status-ko',       sortOrder: 3 },
 };
 
 /* Records created before this field existed have no status:
@@ -803,13 +826,26 @@ $('browse-button').addEventListener('click', () => {
   renderDirectory();
 });
 
+/* Changing the sort re-renders the list (and opens it if it was closed —
+   picking an order clearly means "show me the list"). */
+$('sort-select').addEventListener('change', () => {
+  directorySort = DIRECTORY_SORTS[$('sort-select').value] ? $('sort-select').value : 'cognome';
+  localStorage.setItem('agenda-sort', directorySort);
+  if (!directoryOpen) {
+    directoryOpen = true;
+    $('browse-button').setAttribute('aria-expanded', 'true');
+  }
+  renderDirectory();
+});
+
 function renderDirectory() {
   const directory = $('client-directory');
+  $('sort-select').value = directorySort; // keep the control in sync
   directory.classList.toggle('hidden', !directoryOpen);
   directory.textContent = '';
   if (!directoryOpen) return;
 
-  for (const client of clientsSortedByName()) {
+  for (const client of clientsSortedForDirectory()) {
     const row = document.createElement('div');
     row.className = 'directory-row';
     row.setAttribute('role', 'button');

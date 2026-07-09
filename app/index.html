@@ -99,6 +99,16 @@
       <span id="client-count" class="muted"></span>
       <span class="dot-separator" aria-hidden="true">·</span>
       <button id="browse-button" class="quiet-button" aria-expanded="false">Tutti i clienti</button>
+      <span class="dot-separator" aria-hidden="true">·</span>
+      <label class="sort-control">Ordina
+        <select id="sort-select">
+          <option value="cognome">Cognome</option>
+          <option value="nome">Nome</option>
+          <option value="codice">Codice</option>
+          <option value="modifica">Ultima modifica</option>
+          <option value="stato">Stato</option>
+        </select>
+      </label>
     </div>
 
     <div id="client-directory" class="directory hidden"></div>
@@ -179,6 +189,10 @@
       <label class="status-option">
         <input type="radio" name="client-status" value="client">
         <span class="status-dot status-client" aria-hidden="true"></span> CLIENTE
+      </label>
+      <label class="status-option">
+        <input type="radio" name="client-status" value="noanswer">
+        <span class="status-dot status-noanswer" aria-hidden="true"></span> NON RISPONDE
       </label>
       <label class="status-option">
         <input type="radio" name="client-status" value="ko">

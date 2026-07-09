@@ -74,8 +74,10 @@ PICCOLE COSE UTILI
 - La ricerca trova anche le parole scritte dentro le note.
 - Ogni cliente ha uno stato con pallino colorato:
   giallo = PROSPECT (in lavorazione), verde = CLIENTE,
-  rosso = KO (non interessato / non risponde).
+  bianco = NON RISPONDE, rosso = KO (non interessato).
   Lo scegli quando crei o modifichi il cliente.
+- In home puoi ordinare l'elenco: per cognome, nome,
+  codice, ultima modifica o stato (menu "Ordina").
 - Nella scheda di un cliente, scrivi la nota e premi
   Cmd+Invio per salvarla al volo.
 - "Tutti i clienti" in home mostra l'elenco completo.

@@ -354,6 +354,7 @@ mark {
 }
 .status-prospect { background: #e3b34c; box-shadow: 0 0 6px rgba(227, 179, 76, .4); }
 .status-client   { background: #57b884; box-shadow: 0 0 6px rgba(87, 184, 132, .4); }
+.status-noanswer { background: #e8e8ea; box-shadow: 0 0 6px rgba(232, 232, 234, .35); }
 .status-ko       { background: #e5636b; box-shadow: 0 0 6px rgba(229, 99, 107, .4); }
 
 .status-chip {
@@ -386,7 +387,7 @@ mark {
   display: inline-flex !important;
   align-items: center;
   gap: 7px;
-  margin: 0 6px 0 0 !important;
+  margin: 0 6px 6px 0 !important; /* bottom margin: 4 pills may wrap */
   padding: 7px 12px;
   font-size: .82rem;
   font-weight: 600;
@@ -494,11 +495,34 @@ mark {
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-wrap: wrap;
   gap: 8px;
   margin-top: 18px;
   font-size: .9rem;
 }
 .dot-separator { color: var(--text-muted); }
+
+/* "Ordina" control in the home meta row */
+.sort-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: .9rem;
+}
+.sort-control select {
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+.sort-control select:focus-visible {
+  outline: 2px solid var(--interactive);
+  outline-offset: 2px;
+}
 
 .directory { margin-top: 22px; }
 
